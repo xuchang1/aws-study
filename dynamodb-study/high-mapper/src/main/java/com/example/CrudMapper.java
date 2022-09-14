@@ -7,6 +7,7 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.datamodeling.*;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.util.DateUtils;
 import software.amazon.awssdk.regions.Region;
 
 import java.util.*;
@@ -22,13 +23,32 @@ public class CrudMapper {
                 .build();
         DynamoDBMapper dynamoDBMapper = new DynamoDBMapper(amazonDynamoDB);
 //        deleteTable(amazonDynamoDB);
-        saveAndException(dynamoDBMapper);
-//        load(dynamoDBMapper);
+//        saveAndException(dynamoDBMapper);
+        load(dynamoDBMapper);
 //        update(dynamoDBMapper);
 //        delete(dynamoDBMapper);
 //        batchSave(dynamoDBMapper);
 //        batchDelete(dynamoDBMapper);
 //        query(dynamoDBMapper);
+        queryByDate(dynamoDBMapper);
+    }
+
+    private static void queryByDate(DynamoDBMapper dynamoDBMapper) {
+        Map<String, AttributeValue> valueMap = new HashMap<>(3);
+        valueMap.put(":Id", new AttributeValue().withN("1"));
+
+//        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+//        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+//        String date = dateFormat.format(new Date(1663033153133L));
+        valueMap.put(":date", new AttributeValue().withS(DateUtils.formatISO8601Date(new Date(1663033153133L))));
+
+        String expression = "Id = :Id and date2 = :date";
+        DynamoDBQueryExpression<CatalogItem> queryExpression = new DynamoDBQueryExpression<CatalogItem>()
+                .withKeyConditionExpression(expression)
+                .withConsistentRead(false)
+                .withExpressionAttributeValues(valueMap);
+        PaginatedQueryList<CatalogItem> result = dynamoDBMapper.query(CatalogItem.class, queryExpression);
+        System.out.println(result);
     }
 
     public static void deleteTable(AmazonDynamoDB amazonDynamoDB) {
@@ -53,7 +73,7 @@ public class CrudMapper {
     }
 
     public static void load(DynamoDBMapper mapper) {
-        CatalogItem catalogItem = mapper.load(CatalogItem.class, 4);
+        CatalogItem catalogItem = mapper.load(CatalogItem.class, 1, new Date(1663033153133L));
         System.out.println(catalogItem);
     }
 
@@ -129,17 +149,18 @@ public class CrudMapper {
 
     public static void saveAndException(DynamoDBMapper mapper) {
         CatalogItem catalogItem = new CatalogItem();
-        catalogItem.setId(400001);
+        catalogItem.setId(1);
         catalogItem.setTitle("cs");
         catalogItem.setIsbn("lsbn");
         catalogItem.setBookAuthors(new HashSet<>(Arrays.asList("xc", "ravi")));
         catalogItem.setSomeProp("ignore");
+        catalogItem.setDate(new Date(1663033153133L));
 
         Map<String, String> properties = new HashMap<>();
         properties.put("1", "1");
         properties.put("2", "");
         catalogItem.setProperties(properties);
         mapper.save(catalogItem, DynamoDBMapperConfig.builder()
-                .withSaveBehavior(DynamoDBMapperConfig.SaveBehavior.UPDATE).build());
+                .withSaveBehavior(DynamoDBMapperConfig.SaveBehavior.PUT).build());
     }
 }
